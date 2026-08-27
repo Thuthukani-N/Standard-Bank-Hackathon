@@ -15,7 +15,7 @@ Fraudulent mobile-money transactions cause direct financial loss and erode custo
 3. **Multicollinearity correction** — used VIF screening (raw balance columns had VIFs as high as 410) and PCA to collapse redundant/correlated features.
 4. **Feature selection** — used Mutual Information alongside correlation, since fraud follows threshold/interaction patterns that linear correlation misses.
 5. **Modeling** — trained and compared 5 classifiers (Logistic Regression, Bayesian Logistic Regression via PyMC/ADVI, Decision Tree, Random Forest, XGBoost) on a stratified 80/20 split, with training-set-only undersampling (1:2 ratio) to avoid test-set leakage.
-6. **Rule-based engine** — built a simple, fully interpretable 6-rule flagging system as a business-facing companion that requires no trained model.
+6. **Rule-based engine** — since PR-AUC scores across all models fell short of production-grade reliability under this level of class imbalance, we used the features the models consistently agreed mattered most (via XGBoost gain, Random Forest importance, Logistic Regression coefficients, and Mutual Information) to build a simple, fully interpretable 6-rule flagging system — the actual proposed solution rather than a secondary companion.
 
 ## Results
 
@@ -23,15 +23,15 @@ Evaluated on a held-out, untouched test set (127,253 transactions, 170 fraud cas
 
 | Model | ROC-AUC | PR-AUC | Notes |
 |---|---|---|---|
-| **XGBoost** | 0.9905 | **0.5941** | Best overall — 8.8% missed fraud, 2.9% false-alarm rate |
+| **XGBoost** | 0.9905 | **0.5941** | Best of the models tested — still below production reliability threshold |
 | Random Forest | 0.9879 | 0.5682 | Close second, slightly more conservative |
 | Decision Tree | 0.9733 | 0.1684 | Interpretable but noticeably weaker |
 | Bayesian Logistic Regression | 0.9426 | 0.0762 | Probabilistic counterpart to LR |
 | Logistic Regression | 0.9432 | 0.0746 | Linear baseline |
 
-All five models look strong on ROC-AUC (0.94+), but PR-AUC exposes a large gap — the tree ensembles substantially outperform the linear models, reinforcing that fraud in this data follows non-linear, threshold-based patterns rather than linear ones.
+All five models look strong on ROC-AUC (0.94+), but PR-AUC exposes a large gap — the tree ensembles substantially outperform the linear models. However, even XGBoost's PR-AUC (0.594) fell short of what we'd consider reliable enough for standalone production deployment given the cost of missed fraud. Rather than deploy a black-box model at that performance level, we used the features the models most consistently agreed on as predictive to construct an interpretable, rule-based flagging system instead.
 
-The rule-based engine, tuned to flag on ≥2 triggered rules, caught **100% of test-set fraud** at a 69% false-alarm rate — a useful audit/explainability layer, not a standalone production model.
+The rule-based engine, tuned to flag on ≥2 triggered rules, caught **100% of test-set fraud** at a 69% false-alarm rate — trading some false positives for full fraud recall and complete explainability, which matters for a regulated financial context.
 
 **Top predictive features** (converging across XGBoost gain, Random Forest importance, Logistic Regression coefficients, and Mutual Information): `origZeroBefore`, `newbalanceOrig`, `type_TRANSFER`, `errorBalanceDest`.
 
@@ -76,10 +76,10 @@ Example above: a R450,000 TRANSFER that drains the origin account and lands in a
 ## Limitations & Next Steps
 
 - The `errorBalanceOrig` signal is unusually clean in this synthetic dataset and should be re-validated against real transaction logs before production use.
-- Classification thresholds weren't yet cost-optimized against a bank's actual false-negative/false-positive cost ratio.
-- Only one undersampling ratio (1:2) was tested; sweeping others is a natural next step.
+- Rule thresholds weren't yet cost-optimized against a bank's actual false-negative/false-positive cost ratio.
+- Only one undersampling ratio (1:2) was tested for the ML models; sweeping others is a natural next step.
 
-**Recommended deployment path:** XGBoost as the primary scoring model, with the rule engine retained as an explainable secondary/audit layer for regulatory reporting.
+**Recommended deployment path:** the rule-based engine as the primary flagging system, since it achieves 100% fraud recall with fully explainable, auditable logic — a meaningful advantage over a black-box model in a regulated financial context, especially given the ML models' PR-AUC ceiling. The ML models remain valuable for validating which features matter and for future refinement as more/better labeled data becomes available.
 
 ## Team
 
