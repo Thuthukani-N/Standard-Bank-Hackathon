@@ -69,7 +69,7 @@ The Tkinter demo (`demo.py`) runs locally with just the Python standard library:
 
 A lightweight Tkinter app lets you test the rule-based engine interactively — enter transaction details and get an instant risk assessment with a breakdown of which rules triggered.
 
-![Fraud rule-based flagging demo](Demo%20screenshot.png)
+![Fraud rule-based flagging demo](Demo%20Screenshot.png)
 
 Example above: a R450,000 TRANSFER that drains the origin account and lands in a previously-empty destination account triggers 5/6 rules — flagged as **Critical** risk.
 
